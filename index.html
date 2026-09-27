@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPU Cores Animation</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #1a1a1d; 
+            color: #fff; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+        }
+        h1 { margin-bottom: 5px; }
+        p { color: #aaa; margin-bottom: 20px; text-align: center; max-width: 700px; font-size: 18px; }
+        #controls { margin-bottom: 15px; display: flex; gap: 10px;}
+        button { 
+            background-color: #2196F3; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            font-size: 18px; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        button:hover { background-color: #1976D2; }
+        #btnQuad { background-color: #9C27B0; }
+        #btnQuad:hover { background-color: #7B1FA2; }
+        #btnReset { background-color: #555; }
+        #btnReset:hover { background-color: #777; }
+        button:disabled { background-color: #333 !important; color: #666; cursor: not-allowed; }
+        
+        #description {
+            font-size: 20px;
+            font-weight: bold;
+            color: #FFC107;
+            height: 30px;
+            margin-top: 15px;
+        }
+        canvas { 
+            background-color: #2b2b36; 
+            border: 2px solid #555; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+        }
+    </style>
+</head>
+<body>
+
+<h1>Single-Core vs. Quad-Core</h1>
+<p>
+    A Single-Core CPU processes one task at a time. <br/>
+    A Quad-Core CPU has 4 processing units inside, so it can run 4 tasks simultaneously!
+</p>
+
+<div id="controls">
+    <button id="btnSingle">▶ Run on Single-Core</button>
+    <button id="btnQuad">▶ Run on Quad-Core</button>
+    <button id="btnReset">↻ Reset Tasks</button>
+</div>
+
+<canvas id="coreCanvas" width="850" height="450"></canvas>
+
+<div id="description">Click a button above to start processing the queue.</div>
+
+<script>
+    const canvas = document.getElementById('coreCanvas');
+    const ctx = canvas.getContext('2d');
+    const description = document.getElementById('description');
+
+    const btnSingle = document.getElementById('btnSingle');
+    const btnQuad = document.getElementById('btnQuad');
+    const btnReset = document.getElementById('btnReset');
+
+    // Layout positions
+    const pos = {
+        queue: { x: 120, y: 225, w: 120, h: 350 },
+        cpu: { x: 425, y: 225, w: 220, h: 350 },
+        cores: [
+            { x: 425, y: 105, label: "Core 1" },
+            { x: 425, y: 185, label: "Core 2" },
+            { x: 425, y: 265, label: "Core 3" },
+            { x: 425, y: 345, label: "Core 4" }
+        ],
+        completed: { x: 730, y: 225, w: 120, h: 350 }
+    };
+
+    const taskColors = ['#F44336', '#E91E63', '#00BCD4', '#4CAF50', '#FF9800', '#FFEB3B', '#8BC34A', '#03A9F4'];
+    let tasks = [];
+    let isRunning = false;
+    let masterLoopActive = false;
+
+    // Set up the tasks in the waiting queue
+    function resetTasks() {
+        tasks = [];
+        for (let i = 0; i < 8; i++) {
+            tasks.push({
+                id: `Task ${i + 1}`,
+                color: taskColors[i],
+                x: pos.queue.x,
+                y: pos.queue.y - pos.queue.h/2 + 30 + i * 40
+            });
+        }
+        description.innerText = "Tasks reset. Choose Single-Core or Quad-Core.";
+        if (!masterLoopActive) drawEverything();
+    }
+
+    function setButtons(disabled) {
+        btnSingle.disabled = disabled;
+        btnQuad.disabled = disabled;
+        btnReset.disabled = disabled;
+    }
+
+    // Drawing functions
+    function drawBox(x, y, w, h, title, bgColor, borderColor) {
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(x - w/2, y - h/2, w, h);
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - w/2, y - h/2, w, h);
+        
+        ctx.fillStyle = '#aaa';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, x, y - h/2 - 15);
+    }
+
+    function drawEverything() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw the 3 main areas
+        drawBox(pos.queue.x, pos.queue.y, pos.queue.w, pos.queue.h, "Waiting Queue", '#212121', '#9e9e9e');
+        drawBox(pos.cpu.x, pos.cpu.y, pos.cpu.w, pos.cpu.h, "CPU", '#333', '#fff');
+        drawBox(pos.completed.x, pos.completed.y, pos.completed.w, pos.completed.h, "Finished Tasks", '#1b3320', '#4CAF50');
+
+        // Draw the 4 Cores inside the CPU
+        pos.cores.forEach(core => {
+            ctx.fillStyle = '#424242';
+            ctx.fillRect(core.x - 90, core.y - 30, 180, 60);
+            ctx.strokeStyle = '#777';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(core.x - 90, core.y - 30, 180, 60);
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(core.label, core.x - 80, core.y + 5);
+        });
+
+        // Draw the tasks
+        tasks.forEach(t => {
+            ctx.fillStyle = t.color;
+            ctx.fillRect(t.x - 35, t.y - 15, 70, 30);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(t.x - 35, t.y - 15, 70, 30);
+            
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(t.id, t.x, t.y);
+        });
+    }
+
+    // Master render loop (keeps everything smooth while tasks move)
+    function startMasterLoop() {
+        if (masterLoopActive) return;
+        masterLoopActive = true;
+        function loop() {
+            drawEverything();
+            if (isRunning) {
+                requestAnimationFrame(loop);
+            } else {
+                masterLoopActive = false;
+            }
+        }
+        loop();
+    }
+
+    // Tweening engine to slide blocks smoothly
+    function slideTask(task, targetX, targetY, durationMs) {
+        return new Promise(resolve => {
+            const startX = task.x;
+            const startY = task.y;
+            let startTime = null;
+
+            function step(timestamp) {
+                if (!startTime) startTime = timestamp;
+                let progress = (timestamp - startTime) / durationMs;
+                if (progress > 1) progress = 1;
+
+                // Ease-in-out calculation for smooth sliding
+                let ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                task.x = startX + (targetX - startX) * ease;
+                task.y = startY + (targetY - startY) * ease;
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    resolve();
+                }
+            }
+            requestAnimationFrame(step);
+        });
+    }
+
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // --- BUTTON LOGIC ---
+
+    btnSingle.addEventListener('click', async () => {
+        isRunning = true;
+        setButtons(true);
+        startMasterLoop();
+        description.innerText = "Single-Core: Only Core 1 is active. It must finish a task before starting the next.";
+
+        for (let i = 0; i < 8; i++) {
+            let t = tasks[i];
+            // Move to Core 1
+            await slideTask(t, pos.cores[0].x + 30, pos.cores[0].y, 400);
+            await wait(400); // Simulate processing
+            // Move to Completed
+            await slideTask(t, pos.completed.x, pos.completed.y - pos.completed.h/2 + 30 + i * 40, 400);
+        }
+
+        description.innerText = "Single-Core finished! It got the job done, but it took a long time.";
+        isRunning = false;
+        setButtons(false);
+    });
+
+    btnQuad.addEventListener('click', async () => {
+        isRunning = true;
+        setButtons(true);
+        startMasterLoop();
+        description.innerText = "Quad-Core: 4 Cores are active! It can process 4 tasks at the exact same time.";
+
+        // Process in 2 batches of 4 tasks
+        for (let batch = 0; batch < 2; batch++) {
+            let animations = [];
+            for (let i = 0; i < 4; i++) {
+                let taskIndex = (batch * 4) + i;
+                let t = tasks[taskIndex];
+                let core = pos.cores[i]; // Send to Core 1, 2, 3, and 4
+
+                // Create simultaneous promises
+                animations.push((async () => {
+                    await slideTask(t, core.x + 30, core.y, 400);
+                    await wait(400); // Simulate processing
+                    await slideTask(t, pos.completed.x, pos.completed.y - pos.completed.h/2 + 30 + taskIndex * 40, 400);
+                })());
+            }
+            // Wait for all 4 tasks to finish moving before doing the next batch
+            await Promise.all(animations);
+        }
+
+        description.innerText = "Quad-Core finished! Because of true multitasking, it was 4 times faster.";
+        isRunning = false;
+        setButtons(false);
+    });
+
+    btnReset.addEventListener('click', () => {
+        resetTasks();
+    });
+
+    // Start
+    resetTasks();
+</script>
+</body>
+</html>
