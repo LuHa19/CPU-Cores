@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CPU Cores Animation</title>
+    <title>CPU Cores Animation (Dynamic Visibility)</title>
     <style>
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -32,7 +32,6 @@
         }
         button:hover { background-color: #1976D2; }
         
-        /* New Dual Core Button Styles */
         #btnDual { background-color: #FF9800; }
         #btnDual:hover { background-color: #F57C00; }
         
@@ -59,17 +58,17 @@
 </head>
 <body>
 
-<h1>Single vs. Dual vs. Quad-Core</h1>
+<h1>Single vs. Dual vs. Quad-Core (Dynamic Visibility)</h1>
 <p>
-    A Single-Core CPU processes one task at a time. <br/>
-    A Dual-Core runs 2 tasks, and a Quad-Core runs 4 tasks at a time!
+    Notice how the CPU internal cores only appear when they are active! <br/>
+    The simulation only draws the processors needed for the current configuration.
 </p>
 
 <div id="controls">
     <button id="btnSingle">▶ Run on Single-Core</button>
     <button id="btnDual">▶ Run on Dual-Core</button>
     <button id="btnQuad">▶ Run on Quad-Core</button>
-    <button id="btnReset">↻ Reset Tasks</button>
+    <button id="btnReset">↻ Reset tasks</button>
 </div>
 
 <canvas id="coreCanvas" width="850" height="450"></canvas>
@@ -86,10 +85,11 @@
     const btnQuad = document.getElementById('btnQuad');
     const btnReset = document.getElementById('btnReset');
 
-    // Layout positions
+    // Layout positions (unchanged)
     const pos = {
         queue: { x: 120, y: 225, w: 120, h: 350 },
         cpu: { x: 425, y: 225, w: 220, h: 350 },
+        // Static core locations (they exist in data, but aren't always drawn)
         cores: [
             { x: 425, y: 105, label: "Core 1" },
             { x: 425, y: 185, label: "Core 2" },
@@ -103,6 +103,10 @@
     let tasks = [];
     let isRunning = false;
     let masterLoopActive = false;
+    
+    // --- DYNAMIC VISIBILITY STATE ---
+    // Stores which core objects from 'pos.cores' should be drawn
+    let visibleCores = []; 
 
     // Set up the tasks in the waiting queue
     function resetTasks() {
@@ -115,6 +119,8 @@
                 y: pos.queue.y - pos.queue.h/2 + 30 + i * 40
             });
         }
+        // ensure no cores are visible on reset
+        visibleCores = []; 
         description.innerText = "Tasks reset. Choose a Core setup.";
         if (!masterLoopActive) drawEverything();
     }
@@ -148,8 +154,9 @@
         drawBox(pos.cpu.x, pos.cpu.y, pos.cpu.w, pos.cpu.h, "CPU", '#333', '#fff');
         drawBox(pos.completed.x, pos.completed.y, pos.completed.w, pos.completed.h, "Finished Tasks", '#1b3320', '#4CAF50');
 
-        // Draw the 4 Cores inside the CPU
-        pos.cores.forEach(core => {
+        // --- UPDATED CORE DRAWING LOOP ---
+        // Only iterate through the 'visibleCores' list, not all 'pos.cores'
+        visibleCores.forEach(core => {
             ctx.fillStyle = '#424242';
             ctx.fillRect(core.x - 90, core.y - 30, 180, 60);
             ctx.strokeStyle = '#777';
@@ -178,7 +185,7 @@
         });
     }
 
-    // Master render loop (keeps everything smooth while tasks move)
+    // Master render loop (unchanged)
     function startMasterLoop() {
         if (masterLoopActive) return;
         masterLoopActive = true;
@@ -193,7 +200,7 @@
         loop();
     }
 
-    // Tweening engine to slide blocks smoothly
+    // Tweening engine (unchanged)
     function slideTask(task, targetX, targetY, durationMs) {
         return new Promise(resolve => {
             const startX = task.x;
@@ -223,23 +230,26 @@
 
     const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    // --- BUTTON LOGIC ---
+    // --- BUTTON LOGIC (UPDATED WITH VISIBILITY RULES) ---
 
     // Single-Core
     btnSingle.addEventListener('click', async () => {
         isRunning = true;
         setButtons(true);
+        // Only Core 1 becomes visible
+        visibleCores = [pos.cores[0]]; 
         startMasterLoop();
-        description.innerText = "Single-Core: Only Core 1 is active. It processes 1 task at a time.";
+        description.innerText = "Single-Core: Only Core 1 is active. The other 3 units vanish!";
 
         for (let i = 0; i < 8; i++) {
             let t = tasks[i];
+            // Move to Core 1 position
             await slideTask(t, pos.cores[0].x + 30, pos.cores[0].y, 400);
             await wait(400); 
             await slideTask(t, pos.completed.x, pos.completed.y - pos.completed.h/2 + 30 + i * 40, 400);
         }
 
-        description.innerText = "Single-Core finished! It got the job done, but it took a long time.";
+        description.innerText = "Single-Core finished! The computer only used 25% of its potential capacity.";
         isRunning = false;
         setButtons(false);
     });
@@ -248,28 +258,28 @@
     btnDual.addEventListener('click', async () => {
         isRunning = true;
         setButtons(true);
+        // Core 1 and 2 become visible
+        visibleCores = [pos.cores[0], pos.cores[1]]; 
         startMasterLoop();
-        description.innerText = "Dual-Core: 2 Cores are active! It processes 2 tasks at the same time.";
+        description.innerText = "Dual-Core: Core 1 and 2 are active. 2 processing lanes open.";
 
-        // Process in 4 batches of 2 tasks
+        // Process in batches (unchanged logic)
         for (let batch = 0; batch < 4; batch++) {
             let animations = [];
             for (let i = 0; i < 2; i++) {
                 let taskIndex = (batch * 2) + i;
                 let t = tasks[taskIndex];
-                let core = pos.cores[i]; // Sends to Core 1 and Core 2
-
+                let core = pos.cores[i]; 
                 animations.push((async () => {
                     await slideTask(t, core.x + 30, core.y, 400);
                     await wait(400); 
                     await slideTask(t, pos.completed.x, pos.completed.y - pos.completed.h/2 + 30 + taskIndex * 40, 400);
                 })());
             }
-            // Wait for both tasks to finish moving before doing the next batch
             await Promise.all(animations);
         }
 
-        description.innerText = "Dual-Core finished! It was twice as fast as the Single-Core.";
+        description.innerText = "Dual-Core finished! It used 50% of the total available CPU units.";
         isRunning = false;
         setButtons(false);
     });
@@ -278,17 +288,18 @@
     btnQuad.addEventListener('click', async () => {
         isRunning = true;
         setButtons(true);
+        // All four Cores become visible
+        visibleCores = [pos.cores[0], pos.cores[1], pos.cores[2], pos.cores[3]]; 
         startMasterLoop();
-        description.innerText = "Quad-Core: All 4 Cores are active! It processes 4 tasks simultaneously.";
+        description.innerText = "Quad-Core: All 4 Cores are active! The full supermarket is open.";
 
-        // Process in 2 batches of 4 tasks
+        // Process in batches (unchanged logic)
         for (let batch = 0; batch < 2; batch++) {
             let animations = [];
             for (let i = 0; i < 4; i++) {
                 let taskIndex = (batch * 4) + i;
                 let t = tasks[taskIndex];
                 let core = pos.cores[i]; 
-
                 animations.push((async () => {
                     await slideTask(t, core.x + 30, core.y, 400);
                     await wait(400); 
@@ -298,7 +309,7 @@
             await Promise.all(animations);
         }
 
-        description.innerText = "Quad-Core finished! Because of true multitasking, it was the fastest.";
+        description.innerText = "Quad-Core finished! 100% CPU utilization. It cleared the queue fastest.";
         isRunning = false;
         setButtons(false);
     });
