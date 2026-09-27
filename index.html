@@ -238,7 +238,7 @@
         // Only Core 1 becomes visible
         visibleCores = [pos.cores[0]]; 
         startMasterLoop();
-        description.innerText = "Single-Core: Only Core 1 is active. The other 3 units vanish!";
+        description.innerText = "Single-Core: Only Core 1 is active.";
 
         for (let i = 0; i < 8; i++) {
             let t = tasks[i];
@@ -248,7 +248,7 @@
             await slideTask(t, pos.completed.x, pos.completed.y - pos.completed.h/2 + 30 + i * 40, 400);
         }
 
-        description.innerText = "Single-Core finished! The computer only used 25% of its potential capacity.";
+        description.innerText = "Single-Core finished!";
         isRunning = false;
         setButtons(false);
     });
@@ -260,7 +260,7 @@
         // Core 1 and 2 become visible
         visibleCores = [pos.cores[0], pos.cores[1]]; 
         startMasterLoop();
-        description.innerText = "Dual-Core: Core 1 and 2 are active. 2 processing lanes open.";
+        description.innerText = "Dual-Core: Core 1 and 2 are active.";
 
         // Process in batches (unchanged logic)
         for (let batch = 0; batch < 4; batch++) {
@@ -278,7 +278,7 @@
             await Promise.all(animations);
         }
 
-        description.innerText = "Dual-Core finished! It used 50% of the total available CPU units.";
+        description.innerText = "Dual-Core finished!";
         isRunning = false;
         setButtons(false);
     });
@@ -290,7 +290,7 @@
         // All four Cores become visible
         visibleCores = [pos.cores[0], pos.cores[1], pos.cores[2], pos.cores[3]]; 
         startMasterLoop();
-        description.innerText = "Quad-Core: All 4 Cores are active! The full supermarket is open.";
+        description.innerText = "Quad-Core: All 4 Cores are active! and can do four jobs at once";
 
         // Process in batches (unchanged logic)
         for (let batch = 0; batch < 2; batch++) {
@@ -308,7 +308,7 @@
             await Promise.all(animations);
         }
 
-        description.innerText = "Quad-Core finished! 100% CPU utilization. It cleared the queue fastest.";
+        description.innerText = "Quad-Core finished!";
         isRunning = false;
         setButtons(false);
     });
