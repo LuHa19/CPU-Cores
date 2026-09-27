@@ -31,6 +31,11 @@
             transition: 0.2s;
         }
         button:hover { background-color: #1976D2; }
+        
+        /* New Dual Core Button Styles */
+        #btnDual { background-color: #FF9800; }
+        #btnDual:hover { background-color: #F57C00; }
+        
         #btnQuad { background-color: #9C27B0; }
         #btnQuad:hover { background-color: #7B1FA2; }
         #btnReset { background-color: #555; }
@@ -54,14 +59,15 @@
 </head>
 <body>
 
-<h1>Single-Core vs. Quad-Core</h1>
+<h1>Single vs. Dual vs. Quad-Core</h1>
 <p>
     A Single-Core CPU processes one task at a time. <br/>
-    A Quad-Core CPU has 4 processing units inside, so it can run 4 tasks simultaneously!
+    A Dual-Core runs 2 tasks, and a Quad-Core runs 4 tasks simultaneously!
 </p>
 
 <div id="controls">
     <button id="btnSingle">▶ Run on Single-Core</button>
+    <button id="btnDual">▶ Run on Dual-Core</button>
     <button id="btnQuad">▶ Run on Quad-Core</button>
     <button id="btnReset">↻ Reset Tasks</button>
 </div>
@@ -76,6 +82,7 @@
     const description = document.getElementById('description');
 
     const btnSingle = document.getElementById('btnSingle');
+    const btnDual = document.getElementById('btnDual');
     const btnQuad = document.getElementById('btnQuad');
     const btnReset = document.getElementById('btnReset');
 
@@ -108,12 +115,13 @@
                 y: pos.queue.y - pos.queue.h/2 + 30 + i * 40
             });
         }
-        description.innerText = "Tasks reset. Choose Single-Core or Quad-Core.";
+        description.innerText = "Tasks reset. Choose a Core setup.";
         if (!masterLoopActive) drawEverything();
     }
 
     function setButtons(disabled) {
         btnSingle.disabled = disabled;
+        btnDual.disabled = disabled;
         btnQuad.disabled = disabled;
         btnReset.disabled = disabled;
     }
@@ -217,18 +225,17 @@
 
     // --- BUTTON LOGIC ---
 
+    // Single-Core
     btnSingle.addEventListener('click', async () => {
         isRunning = true;
         setButtons(true);
         startMasterLoop();
-        description.innerText = "Single-Core: Only Core 1 is active. It must finish a task before starting the next.";
+        description.innerText = "Single-Core: Only Core 1 is active. It processes 1 task at a time.";
 
         for (let i = 0; i < 8; i++) {
             let t = tasks[i];
-            // Move to Core 1
             await slideTask(t, pos.cores[0].x + 30, pos.cores[0].y, 400);
-            await wait(400); // Simulate processing
-            // Move to Completed
+            await wait(400); 
             await slideTask(t, pos.completed.x, pos.completed.y - pos.completed.h/2 + 30 + i * 40, 400);
         }
 
@@ -237,11 +244,42 @@
         setButtons(false);
     });
 
+    // Dual-Core
+    btnDual.addEventListener('click', async () => {
+        isRunning = true;
+        setButtons(true);
+        startMasterLoop();
+        description.innerText = "Dual-Core: 2 Cores are active! It processes 2 tasks at the same time.";
+
+        // Process in 4 batches of 2 tasks
+        for (let batch = 0; batch < 4; batch++) {
+            let animations = [];
+            for (let i = 0; i < 2; i++) {
+                let taskIndex = (batch * 2) + i;
+                let t = tasks[taskIndex];
+                let core = pos.cores[i]; // Sends to Core 1 and Core 2
+
+                animations.push((async () => {
+                    await slideTask(t, core.x + 30, core.y, 400);
+                    await wait(400); 
+                    await slideTask(t, pos.completed.x, pos.completed.y - pos.completed.h/2 + 30 + taskIndex * 40, 400);
+                })());
+            }
+            // Wait for both tasks to finish moving before doing the next batch
+            await Promise.all(animations);
+        }
+
+        description.innerText = "Dual-Core finished! It was twice as fast as the Single-Core.";
+        isRunning = false;
+        setButtons(false);
+    });
+
+    // Quad-Core
     btnQuad.addEventListener('click', async () => {
         isRunning = true;
         setButtons(true);
         startMasterLoop();
-        description.innerText = "Quad-Core: 4 Cores are active! It can process 4 tasks at the exact same time.";
+        description.innerText = "Quad-Core: All 4 Cores are active! It processes 4 tasks simultaneously.";
 
         // Process in 2 batches of 4 tasks
         for (let batch = 0; batch < 2; batch++) {
@@ -249,20 +287,18 @@
             for (let i = 0; i < 4; i++) {
                 let taskIndex = (batch * 4) + i;
                 let t = tasks[taskIndex];
-                let core = pos.cores[i]; // Send to Core 1, 2, 3, and 4
+                let core = pos.cores[i]; 
 
-                // Create simultaneous promises
                 animations.push((async () => {
                     await slideTask(t, core.x + 30, core.y, 400);
-                    await wait(400); // Simulate processing
+                    await wait(400); 
                     await slideTask(t, pos.completed.x, pos.completed.y - pos.completed.h/2 + 30 + taskIndex * 40, 400);
                 })());
             }
-            // Wait for all 4 tasks to finish moving before doing the next batch
             await Promise.all(animations);
         }
 
-        description.innerText = "Quad-Core finished! Because of true multitasking, it was 4 times faster.";
+        description.innerText = "Quad-Core finished! Because of true multitasking, it was the fastest.";
         isRunning = false;
         setButtons(false);
     });
